@@ -1,10 +1,10 @@
 ---
-title: "Create a Bootable AmnesiaOS ISO Image"
+title: "Create a Bootable AmnesiaOS ISO with grub-mkrescue"
 sidebarTitle: "ISO Creation"
 description: "Run build-iso.sh to package the AmnesiaOS kernel and initramfs into a bootable ISO using grub-mkrescue. Supports both BIOS and UEFI firmware."
 ---
 
-`build-iso.sh` takes the compiled kernel and initramfs and produces a bootable hybrid ISO image using `grub-mkrescue`. The resulting ISO embeds GRUB 2.12 with both legacy BIOS and UEFI boot support, so it can be written to a USB drive or loaded by a virtual machine regardless of the firmware the target hardware uses.
+`build-iso.sh` takes the compiled kernel and initramfs and produces a bootable hybrid ISO image using `grub-mkrescue`. The resulting ISO embeds GRUB with both legacy BIOS and UEFI boot support, so it can be written to a USB drive or loaded by a virtual machine regardless of the firmware the target hardware uses.
 
 ## Prerequisites
 
@@ -96,8 +96,8 @@ The ISO can also be loaded directly into a virtual machine (QEMU, VirtualBox, VM
 Once you have verified the ISO boots correctly, tag the release in Git and push the tag to trigger a GitHub release:
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
 Attach `amnesia-os.iso` as a binary asset to the GitHub release so users can download it directly without building from source.

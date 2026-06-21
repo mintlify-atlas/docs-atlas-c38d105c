@@ -1,7 +1,7 @@
 ---
-title: "Get Started with AmnesiaOS"
+title: "AmnesiaOS Quickstart: Flash, Boot, and Run Entirely in RAM"
 sidebarTitle: "Quickstart"
-description: "Download the AmnesiaOS ISO, flash it to a USB drive, and boot into a fully stateless RAM-only Linux environment in three steps."
+description: "Download the AmnesiaOS ISO, flash it to a USB drive, and boot into a stateless RAM-only Linux environment. Nothing is written to disk."
 ---
 
 This guide walks you through downloading AmnesiaOS, writing it to a USB drive, and booting into a zero-trace Linux environment where everything runs in RAM and nothing is ever written to your disk. From the moment the kernel starts to the moment you power off, your storage device is left completely untouched.
@@ -19,12 +19,12 @@ This guide walks you through downloading AmnesiaOS, writing it to a USB drive, a
   <Step title="Check Your Hardware">
     Before flashing, confirm your machine meets the minimum requirements:
 
-    | Component | Minimum              | Recommended          |
-    |-----------|----------------------|----------------------|
-    | CPU       | x86_64               | x86_64               |
-    | RAM       | 512 MB               | 1 GB+                |
-    | Media     | USB drive or bootable media | USB 3.0 drive |
-    | Firmware  | BIOS or UEFI         | UEFI preferred       |
+    | Component | Minimum                     | Recommended                 |
+    |-----------|-----------------------------|------------------------------|
+    | CPU       | x86_64                      | x86_64                      |
+    | RAM       | 512 MB                      | 1 GB+                       |
+    | Media     | USB drive or bootable media | USB drive or bootable media |
+    | Firmware  | BIOS or UEFI                | BIOS or UEFI                |
 
     AmnesiaOS loads its entire ~10 MB initramfs into RAM at boot, so even a 512 MB machine will have roughly 470 MB of free working memory after the OS is running.
   </Step>
@@ -44,7 +44,7 @@ This guide walks you through downloading AmnesiaOS, writing it to a USB drive, a
   </Step>
 
   <Step title="Configure Boot Order">
-    Insert the USB drive into the target machine and enter the BIOS or UEFI firmware setup. The key to enter firmware setup is typically **F2**, **F12**, **Del**, or **Esc** — check your motherboard documentation.
+    Insert the USB drive into the target machine and enter the BIOS or UEFI firmware setup. Consult your motherboard or system documentation for the key to enter firmware setup at power-on.
 
     In the firmware setup:
     1. Navigate to the **Boot** or **Boot Order** section.
@@ -63,18 +63,13 @@ This guide walks you through downloading AmnesiaOS, writing it to a USB drive, a
     3. The init script mounts `proc`, `sysfs`, and `devtmpfs`, then starts the `udhcpc` DHCP client to configure the network.
     4. A BusyBox shell is started on `tty1`.
 
-    You will see the following messages as the system comes up:
+    You will see the following message as the system comes up:
 
-    ```
+    ```text
     AmnesiaOS - RAM boot OK
-    Network configured on <iface>
     ```
 
     The system is now fully running in RAM. No further disk access occurs.
-
-    <Tip>
-      For detailed kernel and init output, select **"AmnesiaOS - RAM Boot (verbose)"** from the GRUB menu. This passes additional kernel parameters that enable verbose debug output throughout the boot process — useful for diagnosing hardware compatibility issues.
-    </Tip>
   </Step>
 
 </Steps>

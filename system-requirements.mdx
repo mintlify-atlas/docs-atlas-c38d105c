@@ -1,7 +1,7 @@
 ---
 title: "AmnesiaOS System Requirements and Hardware Support"
 sidebarTitle: "Requirements"
-description: "Hardware requirements to run AmnesiaOS: x86_64 CPU, 512 MB RAM minimum, and a USB drive or other bootable media for the ISO image."
+description: "Hardware requirements to run AmnesiaOS: x86_64 CPU, 512 MB RAM minimum, a USB drive for the bootable ISO image, and BIOS or UEFI firmware."
 ---
 
 Because AmnesiaOS runs entirely in RAM, your machine's physical memory is both the operating environment and the working filesystem. Unlike a traditional OS that uses disk storage to extend its effective memory through swap, AmnesiaOS has no swap — every byte of working space comes from installed RAM. This makes RAM capacity the most directly relevant hardware factor: more RAM means more room for the OS and any work you do in the session.
@@ -16,8 +16,8 @@ Because AmnesiaOS runs entirely in RAM, your machine's physical memory is both t
 |-----------|------------------------------|--------------------------|
 | CPU       | x86_64                       | x86_64                   |
 | RAM       | 512 MB                       | 1 GB+                    |
-| Storage   | USB drive or bootable media  | USB 3.0 drive            |
-| Firmware  | BIOS or UEFI                 | UEFI preferred           |
+| Storage   | USB drive or bootable media  | USB drive or bootable media |
+| Firmware  | BIOS or UEFI                 | BIOS or UEFI             |
 
 ## RAM Considerations
 
@@ -31,18 +31,14 @@ AmnesiaOS has a very small in-memory footprint. Once the system is running, RAM 
 
 On a machine with 512 MB of physical RAM, approximately **470 MB** remains free for use after the OS loads. That is enough for lightweight scripting, network tasks, and command-line work.
 
-For comfortable general use — running multiple processes, working with larger files in the `tmpfs` root, or any memory-intensive tooling — **1 GB or more** of RAM is recommended. Because there is no swap, any attempt to exceed available physical memory will cause the kernel's OOM killer to terminate processes rather than page to disk.
+For comfortable general use — running multiple processes, working with larger files in the `tmpfs` root, or any memory-intensive tooling — **1 GB or more** of RAM is recommended. Because there is no swap, all working memory must fit within available physical RAM.
 
 ## Supported Firmware
 
 AmnesiaOS ships with **GRUB 2.12** as its bootloader. The ISO is built using `grub-mkrescue`, which embeds both a **BIOS (PC-BIOS / CSM)** bootloader and an **EFI** bootloader in a single hybrid image. This means:
 
 - **Legacy BIOS systems** can boot the ISO without any firmware configuration changes beyond setting boot order.
-- **UEFI systems** (with or without Secure Boot disabled) can boot from the EFI partition embedded in the ISO.
-
-UEFI is preferred because it provides faster firmware initialisation and more reliable USB boot enumeration on modern hardware. If your system supports UEFI, boot in UEFI mode rather than CSM/Legacy mode for best results.
-
-Secure Boot is not currently supported. You will need to disable Secure Boot in your UEFI firmware settings before booting AmnesiaOS.
+- **UEFI systems** can boot from the EFI partition embedded in the ISO.
 
 ## Storage Media
 
@@ -52,6 +48,6 @@ The AmnesiaOS ISO must be written to a USB drive (or other bootable block device
 dd if=amnesia-os.iso of=/dev/sdX bs=4M status=progress
 ```
 
-Once the OS has finished booting, the USB drive is **no longer accessed** — the kernel and initramfs have already been copied into RAM in their entirety by the bootloader. The USB drive must, however, remain physically inserted until the machine is powered off. This is a current limitation of the initramfs-only boot approach: the kernel holds a reference to the boot device until the init process completes.
+The GRUB bootloader reads the kernel (`vmlinuz`) and initramfs (`initramfs.img`) from the USB drive and loads them entirely into RAM. Once that transfer is complete, the OS runs without any further disk access.
 
-This restriction will be lifted in **v1.0.0**, which will introduce a SquashFS root image and a `pivot_root` transition. After `pivot_root`, the OS will be fully self-contained in RAM and the USB drive can be safely removed while the system is running.
+A planned v1.0.0 milestone will store a SquashFS root image on the USB drive. At boot it will be copied entirely into RAM, a `pivot_root` will switch the root filesystem to RAM, and the USB drive will be unmounted — leaving the system with zero dependency on any storage device while running.

@@ -1,7 +1,7 @@
 ---
-title: "Linux Kernel Configuration for AmnesiaOS RAM Boot"
+title: "Linux Kernel Configuration Guide for AmnesiaOS RAM Boot"
 sidebarTitle: "Kernel Config"
-description: "The AmnesiaOS kernel requires initramfs support, tmpfs, and SquashFS enabled. Review the key Kconfig options and how they relate to the RAM-boot architecture."
+description: "AmnesiaOS needs initramfs, tmpfs, and SquashFS in the kernel. See the Kconfig symbols and build commands for the minimal RAM-boot kernel configuration."
 ---
 
 AmnesiaOS uses a minimal Linux 6.16.1 kernel configuration derived from `x86_64_defconfig`. Only the options necessary for RAM boot, USB storage, and the planned SquashFS upgrade are enabled on top of the defaults. The final `.config` is exported to `config/kernel.config` in the repository so every build is fully reproducible.
@@ -33,6 +33,7 @@ scripts/config --enable CONFIG_TMPFS
 scripts/config --enable CONFIG_SQUASHFS
 scripts/config --disable CONFIG_MODULE_SIG
 make olddefconfig
+make
 ```
 
 `make olddefconfig` resolves any dependency changes introduced by the manual symbol edits and fills in new options with their default values, keeping the configuration consistent.

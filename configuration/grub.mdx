@@ -1,7 +1,7 @@
 ---
-title: "GRUB Bootloader Configuration for AmnesiaOS"
+title: "AmnesiaOS GRUB 2.12 Bootloader Configuration Guide"
 sidebarTitle: "GRUB"
-description: "AmnesiaOS uses GRUB 2.12 with two boot entries: a standard RAM boot and a verbose debug mode. Learn how to customize the timeout, default entry, and kernel parameters."
+description: "AmnesiaOS uses GRUB 2.12 with two boot entries: a standard RAM boot and a verbose debug mode. Customize timeout, default entry, and kernel parameters."
 ---
 
 AmnesiaOS ships with a GRUB 2.12 configuration embedded in the ISO. The config presents a 5-second menu allowing selection between a standard boot and a verbose debug boot. If no selection is made within the timeout window, GRUB automatically boots the first entry — the normal RAM boot.
@@ -10,7 +10,7 @@ AmnesiaOS ships with a GRUB 2.12 configuration embedded in the ISO. The config p
 
 The complete `config/grub.cfg` used in the ISO is shown below:
 
-```
+```text
 set default=0
 set timeout=5
 
@@ -42,7 +42,7 @@ Both entries load the same kernel (`/boot/vmlinuz`) and the same initramfs image
 
 **Change the timeout**
 
-```
+```text
 set timeout=10
 ```
 
@@ -50,7 +50,7 @@ The value is in seconds. Use `0` for an immediate boot with no menu, or `-1` to 
 
 **Change the default entry**
 
-```
+```text
 set default=1
 ```
 
@@ -60,7 +60,7 @@ Entries are zero-indexed, so `set default=1` makes the verbose boot the automati
 
 Append a new `menuentry` block to the file:
 
-```
+```text
 menuentry "AmnesiaOS - Custom" {
     linux /boot/vmlinuz init=/init rw console=tty1 loglevel=7
     initrd /boot/initramfs.img

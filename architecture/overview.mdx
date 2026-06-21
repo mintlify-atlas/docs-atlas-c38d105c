@@ -1,7 +1,7 @@
 ---
-title: "How AmnesiaOS Achieves Zero-Trace RAM Boot"
+title: "AmnesiaOS Architecture Overview: Zero-Trace RAM Boot"
 sidebarTitle: "Overview"
-description: "AmnesiaOS loads the kernel and initramfs entirely into RAM at boot. No persistent root filesystem is mounted, ensuring zero disk writes and no forensic footprint."
+description: "AmnesiaOS loads the kernel and initramfs into RAM at boot. No persistent root filesystem is mounted, ensuring zero disk writes and no forensic footprint."
 ---
 
 AmnesiaOS is built around one uncompromising principle: **the operating system must leave no trace after shutdown**. At boot, GRUB loads the Linux kernel and a self-contained initramfs image directly into RAM. From that moment forward, every read, write, and execution happens exclusively in memory. No persistent root filesystem is ever mounted, no swap partition is touched, and when the machine loses power the hardware clears RAM — taking every bit of the running system with it.

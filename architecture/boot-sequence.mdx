@@ -1,7 +1,7 @@
 ---
 title: "AmnesiaOS Boot Sequence: From BIOS to BusyBox Shell"
 sidebarTitle: "Boot Sequence"
-description: "Step-by-step walkthrough of how AmnesiaOS boots: GRUB loads the kernel and initramfs into RAM, the init script mounts virtual filesystems and configures the network, then drops to a BusyBox shell."
+description: "Step-by-step walkthrough of how AmnesiaOS boots: from firmware through GRUB, the kernel, the /init script, and into an interactive BusyBox shell."
 ---
 
 The AmnesiaOS boot process is designed so that **all execution happens in RAM from the moment GRUB hands off to the kernel**. GRUB reads the bootloader configuration and copies both `vmlinuz` and `initramfs.img` into physical memory. After that handoff, the boot medium (USB drive or other device) is never touched again — no reads, no writes, no mounts. Every subsequent step — kernel decompression, virtual filesystem setup, network configuration, and the interactive shell — runs entirely in RAM.
@@ -17,11 +17,11 @@ The AmnesiaOS boot process is designed so that **all execution happens in RAM fr
     GRUB reads `grub.cfg` from the boot partition and presents a five-second countdown menu with two entries (see [GRUB menu entries](#grub-menu-entries) below). Once an entry is selected — or the default fires after the timeout — GRUB executes two commands:
 
     1. Loads `vmlinuz` (the compressed Linux kernel) into RAM and passes the kernel command line:
-       ```
+       ```text
        linux /boot/vmlinuz init=/init rw console=tty1
        ```
     2. Loads `initramfs.img` (the gzip'd CPIO archive) into RAM:
-       ```
+       ```text
        initrd /boot/initramfs.img
        ```
 
@@ -39,7 +39,7 @@ The AmnesiaOS boot process is designed so that **all execution happens in RAM fr
     - Brings up the loopback interface (`lo`).
     - Iterates over every network interface found in `/sys/class/net/`, brings each one up, and runs `udhcpc` to request a DHCP lease.
     - Prints status messages to the console as it works:
-      ```
+      ```text
       AmnesiaOS - RAM boot OK
       Configuring network...
       Network configured on <iface>
@@ -79,7 +79,7 @@ The AmnesiaOS boot process is designed so that **all execution happens in RAM fr
 
 The two menu entries defined in `grub.cfg` correspond to a normal boot and a verbose debug boot. The only difference is the addition of the `debug` kernel parameter in the second entry, which enables verbose kernel logging to the console.
 
-```sh
+```text
 set default=0
 set timeout=5
 

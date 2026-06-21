@@ -1,7 +1,7 @@
 ---
-title: "Compile the Linux 6.16.1 Kernel for AmnesiaOS"
+title: "Compile Linux Kernel 6.16.1 from Source for AmnesiaOS"
 sidebarTitle: "Kernel"
-description: "Configure and compile Linux kernel 6.16.1 from source with initramfs, tmpfs, and SquashFS support for AmnesiaOS. Covers the key kernel config options required for RAM boot."
+description: "Configure and compile Linux 6.16.1 with initramfs, tmpfs, and SquashFS support for AmnesiaOS. Covers all kernel config options required for RAM-only boot."
 ---
 
 AmnesiaOS uses **Linux 6.16.1** compiled from source with a lean, targeted configuration. The two non-negotiable requirements are initramfs/initrd support — so the kernel can unpack the CPIO archive into memory at boot — and tmpfs, so the entire root filesystem lives in RAM without any persistent storage device. The steps below walk through applying the base config, enabling the required options, building, and installing the kernel image.
@@ -34,14 +34,10 @@ AmnesiaOS uses **Linux 6.16.1** compiled from source with a lean, targeted confi
     Compile the kernel. The build output you need is the compressed kernel image at `arch/x86/boot/bzImage`:
 
     ```bash
-    make -j$(nproc)
+    make
     ```
 
     Build time varies from a few minutes on a fast workstation to 30+ minutes on slower hardware. Watch for any errors in the final link stage — warnings earlier in the build are usually harmless.
-
-    <Tip>
-      Always pass `-j$(nproc)` to `make` to parallelize the build across every available CPU core. On a 4-core machine this typically cuts build time by 3–4×.
-    </Tip>
   </Step>
 
   <Step title="Install the kernel">

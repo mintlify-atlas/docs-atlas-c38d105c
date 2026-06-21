@@ -1,5 +1,5 @@
 ---
-title: "AmnesiaOS RAM Layout and Memory Usage"
+title: "AmnesiaOS Runtime RAM Layout: Kernel, tmpfs, and Free Memory"
 sidebarTitle: "RAM Layout"
 description: "How AmnesiaOS uses physical RAM at runtime: kernel, initramfs tmpfs, and free memory. Covers the tmpfs design and why no swap is configured."
 ---
@@ -10,7 +10,7 @@ Because AmnesiaOS runs entirely in RAM — with no backing store on disk — phy
 
 The following diagram shows the three regions of physical RAM at runtime, from lowest address to highest:
 
-```
+```text
 Physical RAM
 ┌─────────────────────────┐
 │   Linux Kernel          │  ~15MB

@@ -1,10 +1,10 @@
 ---
-title: "Network Configuration in AmnesiaOS via DHCP"
+title: "AmnesiaOS Automatic Network Configuration with udhcpc"
 sidebarTitle: "Network"
 description: "AmnesiaOS automatically configures network interfaces at boot using udhcpc, BusyBox's DHCP client. Learn how DHCP, DNS, and the udhcpc hook script work."
 ---
 
-Since v0.2.0, AmnesiaOS automatically configures network interfaces at boot using `udhcpc` — BusyBox's built-in DHCP client. No manual configuration is needed on networks with a DHCP server. The entire process runs inside `/init` before the interactive shell is launched, so the network is ready the moment you reach a prompt.
+AmnesiaOS automatically configures network interfaces at boot using `udhcpc` — BusyBox's built-in DHCP client. No manual configuration is needed on networks with a DHCP server. The entire process runs inside `/init` before the interactive shell is launched, so the network is ready the moment you reach a prompt.
 
 ## How network boot works
 

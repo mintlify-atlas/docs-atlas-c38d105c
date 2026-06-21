@@ -1,7 +1,7 @@
 ---
-title: "Build the AmnesiaOS Initramfs Archive"
+title: "Build the AmnesiaOS Initramfs CPIO Archive with BusyBox"
 sidebarTitle: "Initramfs"
-description: "Run build-initramfs.sh to create the gzip'd CPIO initramfs for AmnesiaOS. The script downloads BusyBox, creates the directory structure, writes the init script, and packs the archive."
+description: "Run build-initramfs.sh to build the AmnesiaOS initramfs: downloads BusyBox 1.35.0, creates the directory tree, writes the init script, and packs it."
 ---
 
 The initramfs is a gzip-compressed CPIO archive that the Linux kernel decompresses directly into a tmpfs at boot. Because AmnesiaOS never mounts a persistent root device, this archive *is* the entire running OS — everything the system does after the kernel hands off to userspace happens inside it. `scripts/build-initramfs.sh` automates the full assembly: downloading BusyBox, building the directory tree, creating device nodes, writing the network and init scripts, and packing the final image.
