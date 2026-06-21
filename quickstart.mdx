@@ -1,47 +1,102 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with AmnesiaOS"
+sidebarTitle: "Quickstart"
+description: "Download the AmnesiaOS ISO, flash it to a USB drive, and boot into a fully stateless RAM-only Linux environment in three steps."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+This guide walks you through downloading AmnesiaOS, writing it to a USB drive, and booting into a zero-trace Linux environment where everything runs in RAM and nothing is ever written to your disk. From the moment the kernel starts to the moment you power off, your storage device is left completely untouched.
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+
+  <Step title="Download the ISO">
+    Grab the latest `amnesia-os.iso` from the AmnesiaOS GitHub releases page:
+
+    [https://github.com/damianiglesias/amnesiaOS/releases](https://github.com/damianiglesias/amnesiaOS/releases)
+
+    Download the `amnesia-os.iso` asset from the most recent release. Verify the file size is consistent with the release notes before proceeding.
+  </Step>
+
+  <Step title="Check Your Hardware">
+    Before flashing, confirm your machine meets the minimum requirements:
+
+    | Component | Minimum              | Recommended          |
+    |-----------|----------------------|----------------------|
+    | CPU       | x86_64               | x86_64               |
+    | RAM       | 512 MB               | 1 GB+                |
+    | Media     | USB drive or bootable media | USB 3.0 drive |
+    | Firmware  | BIOS or UEFI         | UEFI preferred       |
+
+    AmnesiaOS loads its entire ~10 MB initramfs into RAM at boot, so even a 512 MB machine will have roughly 470 MB of free working memory after the OS is running.
+  </Step>
+
+  <Step title="Flash to USB">
+    Use `dd` to write the ISO to your USB drive. Replace `/dev/sdX` with the actual device node for your USB drive (e.g. `/dev/sdb`):
 
     ```bash
-    npm install your-package
+    dd if=amnesia-os.iso of=/dev/sdX bs=4M status=progress
     ```
-  </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
-    ```
-  </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+    <Warning>
+      `/dev/sdX` must be replaced with the correct device for your USB drive — **not** a partition (e.g. `/dev/sdb`, not `/dev/sdb1`). You can identify the device with `lsblk` or `fdisk -l`. The `dd` command will **completely erase** everything on the target device with no confirmation prompt. Double-check the device path before running the command.
+    </Warning>
 
-    ```bash
-    your-cli start
-    ```
+    Wait for `dd` to finish and for the write cache to flush (`sync`) before removing the drive.
   </Step>
+
+  <Step title="Configure Boot Order">
+    Insert the USB drive into the target machine and enter the BIOS or UEFI firmware setup. The key to enter firmware setup is typically **F2**, **F12**, **Del**, or **Esc** — check your motherboard documentation.
+
+    In the firmware setup:
+    1. Navigate to the **Boot** or **Boot Order** section.
+    2. Move your USB drive to the **first** boot position.
+    3. Save changes and exit (usually **F10**).
+
+    The machine will reboot and attempt to boot from the USB drive.
+  </Step>
+
+  <Step title="Boot AmnesiaOS">
+    GRUB will present a boot menu. Select **AmnesiaOS** and press Enter.
+
+    What happens next:
+    1. GRUB loads the kernel (`vmlinuz`) and initramfs (`initramfs.img`) entirely into RAM.
+    2. The kernel initialises and hands control to the init script.
+    3. The init script mounts `proc`, `sysfs`, and `devtmpfs`, then starts the `udhcpc` DHCP client to configure the network.
+    4. A BusyBox shell is started on `tty1`.
+
+    You will see the following messages as the system comes up:
+
+    ```
+    AmnesiaOS - RAM boot OK
+    Network configured on <iface>
+    ```
+
+    The system is now fully running in RAM. No further disk access occurs.
+
+    <Tip>
+      For detailed kernel and init output, select **"AmnesiaOS - RAM Boot (verbose)"** from the GRUB menu. This passes additional kernel parameters that enable verbose debug output throughout the boot process — useful for diagnosing hardware compatibility issues.
+    </Tip>
+  </Step>
+
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## What You Get
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+After boot you land in a BusyBox shell with:
+
+- **300+ Unix utilities** — BusyBox 1.35.0 provides `sh`, `ls`, `cat`, `grep`, `sed`, `awk`, `find`, `tar`, `vi`, `ip`, `ping`, `df`, `free`, `ps`, `kill`, `dmesg`, and many more, all from a single statically linked binary.
+- **Automatic DHCP network** — `udhcpc` has already negotiated an IP address on the first available interface and written `/etc/resolv.conf` for DNS resolution.
+- **Full RAM working space** — the root filesystem is a `tmpfs` mount, so you can write files, install scripts, and work freely. Everything lives in memory and disappears on shutdown.
+
+## Shutting Down
+
+To shut down AmnesiaOS, run either of the following from the BusyBox shell:
+
+```bash
+poweroff
+```
+
+```bash
+halt
+```
+
+Either command halts the system. Once power is removed, RAM is cleared and no trace of the session remains on any storage device. The USB drive is unmodified and ready to boot again immediately.

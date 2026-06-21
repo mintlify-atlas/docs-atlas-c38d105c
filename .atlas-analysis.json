@@ -1,0 +1,79 @@
+{
+  "projectType": "infrastructure",
+  "projectName": "AmnesiaOS",
+  "projectDescription": "A minimal Linux operating system that boots entirely into RAM, leaving no trace on storage after shutdown.",
+  "theme": "aspen",
+  "primaryColor": "#1A1A2E",
+  "lightColor": "#4B5EAA",
+  "darkColor": "#0D0D1A",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "system-requirements"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "architecture/overview",
+              "architecture/boot-sequence",
+              "architecture/ram-layout"
+            ]
+          },
+          {
+            "group": "Building from Source",
+            "pages": [
+              "build/prerequisites",
+              "build/kernel",
+              "build/initramfs",
+              "build/iso"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/kernel-config",
+              "configuration/grub",
+              "configuration/network"
+            ]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "reference/components",
+              "reference/busybox-utilities",
+              "reference/changelog"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Full RAM execution — the entire OS runs in memory with no disk dependency",
+    "No disk traces — shutdown leaves zero forensic footprint",
+    "Minimal initramfs — lightweight CPIO archive with BusyBox 1.35.0",
+    "Custom Linux kernel 6.16.1 compiled from source",
+    "Built from scratch using Linux From Scratch methodology",
+    "Automatic network configuration via DHCP at boot",
+    "GRUB 2.12 bootloader with BIOS and EFI support",
+    "GPL-3.0 licensed — fully open source"
+  ],
+  "publicApiSurface": [
+    "scripts/build-initramfs.sh — builds the initramfs CPIO archive",
+    "scripts/build-iso.sh — creates bootable ISO image",
+    "config/grub.cfg — GRUB bootloader menu configuration",
+    "config/kernel.config — Linux kernel build configuration",
+    "/init — shell script that bootstraps the RAM environment",
+    "/usr/share/udhcpc/default.script — DHCP client hook script",
+    "GRUB kernel params: init=/init rw console=tty1 [debug]",
+    "BusyBox utilities: sh, mount, ip, ping, vi, tar, grep, udhcpc, wget, and more"
+  ]
+}

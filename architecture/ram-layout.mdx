@@ -1,0 +1,65 @@
+---
+title: "AmnesiaOS RAM Layout and Memory Usage"
+sidebarTitle: "RAM Layout"
+description: "How AmnesiaOS uses physical RAM at runtime: kernel, initramfs tmpfs, and free memory. Covers the tmpfs design and why no swap is configured."
+---
+
+Because AmnesiaOS runs entirely in RAM — with no backing store on disk — physical memory is the only resource budget you have. Understanding how that budget is allocated at runtime lets you plan workloads, set expectations for memory-intensive tasks, and choose appropriate hardware. The total overhead of the OS itself is modest: approximately 25 MB, leaving the vast majority of a modern machine's RAM available for use.
+
+## Runtime memory layout
+
+The following diagram shows the three regions of physical RAM at runtime, from lowest address to highest:
+
+```
+Physical RAM
+┌─────────────────────────┐
+│   Linux Kernel          │  ~15MB
+├─────────────────────────┤
+│   Initramfs (tmpfs)     │  ~10MB
+├─────────────────────────┤
+│   Free for use          │  remaining RAM
+└─────────────────────────┘
+```
+
+## Memory regions
+
+| Region | Approximate Size | Description |
+|---|---|---|
+| Linux Kernel | ~15 MB | The compiled kernel image decompressed into RAM by GRUB. Includes all built-in drivers and subsystems from the minimal kernel configuration. |
+| Initramfs / tmpfs | ~10 MB | The BusyBox 1.35.0 static binary, all utility symlinks, the `/init` script, device nodes, and supporting files — all living inside the tmpfs that serves as the root filesystem. |
+| Free RAM | Remaining | Everything above the OS footprint is available for user processes, in-session data, downloaded files, and any workloads you run during the session. |
+
+## Why tmpfs?
+
+`tmpfs` is a virtual filesystem built into the Linux kernel that stores all of its data in physical RAM (and, optionally, swap — but see below). There is no block device, no disk I/O, and no persistence. When the kernel decompresses the CPIO initramfs archive, it populates a `tmpfs` instance mounted at `/` with the contents of that archive. From that point forward:
+
+- Every file you create is written to RAM via the tmpfs layer.
+- Every file you read is served from RAM via the tmpfs layer.
+- Filesystem metadata (directory entries, inodes, permissions) is also held in RAM.
+- Renaming, deleting, or modifying files never touches any storage device.
+
+This is what makes the zero-trace guarantee possible: `tmpfs` is incapable of persisting data across a power cycle by design.
+
+## No swap policy
+
+AmnesiaOS does not configure a swap partition or a swap file, and this is a deliberate security decision. Swap is a mechanism that lets the kernel move pages of RAM to a block device (typically a disk partition) when physical memory is under pressure. While useful for maximising RAM utilisation on conventional systems, it would be catastrophic for AmnesiaOS:
+
+- Swapped-out pages would be written to a disk, creating a recoverable forensic artifact.
+- Even after a clean shutdown, a swap partition can retain readable memory contents.
+- Disabling swap ensures that **all memory pressure is handled exclusively in RAM**, and that no data ever reaches a persistent storage device under any circumstances.
+
+If a process consumes more memory than is available, the Linux OOM (out-of-memory) killer will terminate it — see the warning below.
+
+## Future: SquashFS pivot_root
+
+Planned for v1.0.0, this enhancement replaces the minimal BusyBox-only environment with a full LFS userland while preserving the zero-disk-dependency property:
+
+1. A compressed SquashFS image containing the full userland is stored on the USB boot medium alongside the kernel and initramfs.
+2. At boot, the early init environment copies the entire SquashFS image into a RAM-backed `tmpfs`.
+3. `pivot_root` switches the root filesystem from the initramfs tmpfs to the new in-RAM tmpfs containing the SquashFS image.
+4. The USB drive is unmounted — the boot medium is no longer needed or referenced.
+5. The system continues to run with a rich userland and zero disk dependency, maintaining the same zero-trace guarantee as the current version.
+
+<Warning>
+  Because there is no swap, the Linux OOM killer is the only safety valve when RAM is exhausted. On systems with very limited memory, important processes — including the shell itself — can be killed without warning. Use hardware with a minimum of **512 MB RAM**; **1 GB or more is recommended** for comfortable interactive use and any workloads beyond basic shell operations.
+</Warning>

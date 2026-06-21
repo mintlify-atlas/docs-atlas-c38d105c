@@ -1,0 +1,62 @@
+---
+title: "How AmnesiaOS Achieves Zero-Trace RAM Boot"
+sidebarTitle: "Overview"
+description: "AmnesiaOS loads the kernel and initramfs entirely into RAM at boot. No persistent root filesystem is mounted, ensuring zero disk writes and no forensic footprint."
+---
+
+AmnesiaOS is built around one uncompromising principle: **the operating system must leave no trace after shutdown**. At boot, GRUB loads the Linux kernel and a self-contained initramfs image directly into RAM. From that moment forward, every read, write, and execution happens exclusively in memory. No persistent root filesystem is ever mounted, no swap partition is touched, and when the machine loses power the hardware clears RAM — taking every bit of the running system with it.
+
+## Core components
+
+<CardGroup cols={2}>
+  <Card title="Linux Kernel 6.16.1" icon="microchip">
+    Compiled from source with a minimal configuration. Includes initramfs/initrd support, tmpfs, USB storage drivers, ext4, and SquashFS — and nothing else.
+  </Card>
+  <Card title="Initramfs" icon="box-archive">
+    A CPIO archive compressed with gzip, weighing in at approximately 10 MB. It is loaded entirely into RAM by GRUB before the kernel executes a single line of `/init`.
+  </Card>
+  <Card title="BusyBox 1.35.0" icon="toolbox">
+    A single statically-linked binary (~1 MB) that provides over 300 Unix utilities — `sh`, `ls`, `ip`, `vi`, `tar`, `ping`, and more — with no external library dependencies.
+  </Card>
+  <Card title="GRUB 2.12" icon="hard-drive">
+    Supports both BIOS and UEFI firmware. Reads `grub.cfg` from the boot medium and loads `vmlinuz` plus `initramfs.img` into RAM before handing off to the kernel.
+  </Card>
+  <Card title="/init script" icon="scroll">
+    A minimal shell script that bootstraps the system: mounts the virtual filesystems (`proc`, `sysfs`, `devtmpfs`), brings up the loopback interface, runs `udhcpc` for DHCP on each detected network interface, then drops into an interactive BusyBox shell.
+  </Card>
+  <Card title="tmpfs" icon="memory">
+    The RAM-backed virtual filesystem used as the root filesystem for the entire running OS. All filesystem operations — including creating, editing, and deleting files — are purely in-memory operations.
+  </Card>
+</CardGroup>
+
+## Why no disk writes?
+
+- **Everything is tmpfs.** The kernel mounts the initramfs as a `tmpfs` root. There is no block device involved — the "disk" is RAM.
+- **No swap partition.** Configuring swap would let the kernel page memory out to disk, leaving recoverable data. AmnesiaOS deliberately omits any swap configuration.
+- **No persistent storage mounted by default.** External drives and internal disks are never mounted automatically. Accessing them requires an explicit user action.
+- **RAM is cleared on power-off.** When the machine shuts down or loses power, DRAM loses its charge and all data is irrecoverably destroyed — this is the zero-trace guarantee.
+
+## Design trade-offs
+
+<Accordion title="What happens to data when I shut down?">
+  Everything stored in RAM is lost the moment the machine powers off. Files you created, configuration changes you made, and any data you downloaded during the session vanish completely — this is intentional and is the core security property of AmnesiaOS. There is no way to recover data after a shutdown.
+</Accordion>
+
+<Accordion title="Can I persist files?">
+  Not in the current version (v0.2.0). Because no persistent storage is mounted by default, there is nowhere for files to survive a reboot. A future release will explore network-backed storage (e.g. NFS or SFTP) as an opt-in mechanism that keeps the local disk completely untouched.
+</Accordion>
+
+<Accordion title="What is the working memory available?">
+  The kernel occupies approximately 15 MB and the initramfs tmpfs uses approximately 10 MB, for a combined overhead of roughly 25 MB. On a machine with 512 MB of RAM, you have around 487 MB free for processes and data. On a machine with 1 GB, you have roughly 999 MB free. See the RAM Layout page for a full breakdown.
+</Accordion>
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Boot Sequence" icon="arrow-right" href="/architecture/boot-sequence">
+    Step-by-step walkthrough from firmware power-on through GRUB, the kernel, `/init`, and the BusyBox shell.
+  </Card>
+  <Card title="RAM Layout" icon="chart-bar" href="/architecture/ram-layout">
+    How physical RAM is divided at runtime: kernel, initramfs tmpfs, and the memory available for your workloads.
+  </Card>
+</CardGroup>

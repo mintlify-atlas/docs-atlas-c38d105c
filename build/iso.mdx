@@ -1,0 +1,103 @@
+---
+title: "Create a Bootable AmnesiaOS ISO Image"
+sidebarTitle: "ISO Creation"
+description: "Run build-iso.sh to package the AmnesiaOS kernel and initramfs into a bootable ISO using grub-mkrescue. Supports both BIOS and UEFI firmware."
+---
+
+`build-iso.sh` takes the compiled kernel and initramfs and produces a bootable hybrid ISO image using `grub-mkrescue`. The resulting ISO embeds GRUB 2.12 with both legacy BIOS and UEFI boot support, so it can be written to a USB drive or loaded by a virtual machine regardless of the firmware the target hardware uses.
+
+## Prerequisites
+
+Before running this script you must have successfully completed both the [kernel build](/build/kernel) and [initramfs build](/build/initramfs). The script expects the following files to exist:
+
+- `/boot/vmlinuz-6.16.1-lfs` — the compiled kernel image
+- `/boot/initramfs-6.16.1.img` — the gzip-compressed CPIO initramfs archive
+
+## Running the script
+
+The ISO build does not require root privileges:
+
+```bash
+bash scripts/build-iso.sh
+```
+
+When the script finishes it prints the path and size of the finished image. The ISO is written to:
+
+```
+~/amnesia-os.iso
+```
+
+## What the script does
+
+<Steps>
+  <Step title="Create ISO root structure">
+    The script creates the staging directory that `grub-mkrescue` will pack into the ISO:
+
+    ```bash
+    mkdir -pv /tmp/amnesia-isoroot/boot/grub
+    ```
+  </Step>
+
+  <Step title="Copy boot files">
+    The kernel and initramfs are copied into the staging tree under the paths that the GRUB config references:
+
+    ```bash
+    cp /boot/vmlinuz-6.16.1-lfs   /tmp/amnesia-isoroot/boot/vmlinuz
+    cp /boot/initramfs-6.16.1.img /tmp/amnesia-isoroot/boot/initramfs.img
+    ```
+  </Step>
+
+  <Step title="Write grub.cfg">
+    The script writes the GRUB menu configuration to `/tmp/amnesia-isoroot/boot/grub/grub.cfg`. Two menu entries are provided — a standard boot and a verbose boot with the `debug` kernel parameter for troubleshooting:
+
+    ```
+    set default=0
+    set timeout=5
+
+    menuentry "AmnesiaOS - RAM Boot" {
+        linux /boot/vmlinuz init=/init rw console=tty1
+        initrd /boot/initramfs.img
+    }
+
+    menuentry "AmnesiaOS - RAM Boot (verbose)" {
+        linux /boot/vmlinuz init=/init rw console=tty1 debug
+        initrd /boot/initramfs.img
+    }
+    ```
+
+    Both entries pass `init=/init` so the kernel executes the BusyBox init script inside the initramfs rather than looking for a system-level init binary. The `rw` flag mounts the initramfs read-write so the running system can modify files in RAM.
+  </Step>
+
+  <Step title="Build ISO with grub-mkrescue">
+    `grub-mkrescue` packs the staging tree into a single hybrid ISO that boots on both BIOS and UEFI systems. The `grub-pc-bin` and `grub-efi-amd64-bin` packages installed during [prerequisites](/build/prerequisites) provide the necessary GRUB modules for each firmware type:
+
+    ```bash
+    grub-mkrescue -o ~/amnesia-os.iso /tmp/amnesia-isoroot
+    ```
+  </Step>
+</Steps>
+
+## Flash to USB
+
+After the ISO is built, write it directly to a USB drive using `dd`:
+
+```bash
+dd if=~/amnesia-os.iso of=/dev/sdX bs=4M status=progress
+```
+
+<Warning>
+  Replace `/dev/sdX` with the correct device path for your USB drive. Writing to the wrong device will permanently destroy data on that disk. Run `lsblk` before executing `dd` to confirm the target device identifier, and make sure the drive is **not** mounted.
+</Warning>
+
+The ISO can also be loaded directly into a virtual machine (QEMU, VirtualBox, VMware) without flashing — just attach it as a virtual optical drive and boot from it.
+
+## Tagging a release
+
+Once you have verified the ISO boots correctly, tag the release in Git and push the tag to trigger a GitHub release:
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+Attach `amnesia-os.iso` as a binary asset to the GitHub release so users can download it directly without building from source.

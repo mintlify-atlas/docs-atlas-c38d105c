@@ -1,0 +1,66 @@
+---
+title: "AmnesiaOS: Minimal Linux That Boots Into RAM"
+sidebarTitle: "Introduction"
+description: "AmnesiaOS is a privacy-focused Linux distribution that loads entirely into RAM at boot. No disk writes, no traces, no persistent state after shutdown."
+---
+
+AmnesiaOS is a custom Linux distribution built from scratch using Linux From Scratch (LFS) methodology. At boot, the entire operating system — kernel, userland, and init — loads into RAM. Once it's running, the storage device is no longer touched. When you power off, nothing is written, nothing is left behind, and RAM is cleared by the hardware. AmnesiaOS is designed for privacy-conscious users, security researchers, incident responders, and anyone who needs a clean, stateless computing environment with zero forensic footprint.
+
+## What Makes AmnesiaOS Different
+
+Traditional Linux distributions rely on a persistent root filesystem — changes you make are written to disk, log files accumulate, swap space extends memory onto a physical device, and journal entries survive reboots. AmnesiaOS eliminates all of that.
+
+The OS is packaged as a compact initramfs image. GRUB loads the kernel and initramfs directly into RAM, and the init script mounts a `tmpfs` root in memory. From that point on:
+
+- **No swap** — there is no swap partition or swap file. All memory operations stay in RAM.
+- **No persistent root filesystem** — the root is a `tmpfs` mount, ephemeral by nature.
+- **No journal writes** — without a disk-backed filesystem, there are no journal or log files to recover after shutdown.
+- **RAM cleared on power-off** — volatile RAM does not retain data once power is removed, so shutting down leaves no recoverable state on any storage medium.
+
+This design means every boot is a clean slate. The same ISO you flash to USB today will produce an identical environment every single time you boot from it.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Full RAM Execution" icon="microchip">
+    The entire OS runs in memory from the moment the kernel hands off to init. No disk I/O occurs during normal operation.
+  </Card>
+  <Card title="Zero Forensic Footprint" icon="eye-slash">
+    Shutdown leaves no trace on any storage device. There are no log files, no swap artifacts, and no filesystem journals to recover.
+  </Card>
+  <Card title="Minimal Footprint (~10 MB initramfs)" icon="feather">
+    The initramfs image is approximately 10 MB, keeping RAM usage tiny and boot times fast even on modest hardware.
+  </Card>
+  <Card title="Custom Linux Kernel 6.16.1" icon="linux">
+    The kernel is compiled from source with `x86_64_defconfig` plus explicit `TMPFS`, `BLK_DEV_INITRD`, and `SQUASHFS` support — no binary blobs from a third-party distro.
+  </Card>
+  <Card title="Built from Scratch (LFS Methodology)" icon="hammer">
+    AmnesiaOS follows the Linux From Scratch book to build its own cross-compilation toolchain and core packages. There is no upstream distro base.
+  </Card>
+  <Card title="Automatic DHCP Network" icon="network-wired">
+    The init script runs `udhcpc` at boot to configure network interfaces automatically. DNS resolution is set up via a dynamically written `resolv.conf`.
+  </Card>
+  <Card title="GRUB BIOS + EFI Support" icon="server">
+    The ISO is built with `grub-mkrescue`, embedding both a BIOS bootloader and an EFI bootloader so it boots on legacy and modern firmware alike.
+  </Card>
+  <Card title="GPL-3.0 Open Source" icon="code-branch">
+    AmnesiaOS is fully open source under the GPL-3.0 license. The kernel, init scripts, and build tooling are all available for inspection and modification.
+  </Card>
+</CardGroup>
+
+## Current Release
+
+The following component versions ship in the current release (v0.2.0):
+
+| Component    | Version        |
+|--------------|----------------|
+| Kernel       | Linux 6.16.1   |
+| Userland     | BusyBox 1.35.0 |
+| Bootloader   | GRUB 2.12      |
+| Filesystem   | tmpfs (RAM)    |
+
+## Project Status
+
+<Note>
+  AmnesiaOS is currently in early development under the `0.x.x` version series. APIs, init scripts, and ISO layout may change between releases. The upcoming v1.0.0 milestone will introduce a full LFS userland delivered as a SquashFS image, enabling a `pivot_root` into a richer in-RAM environment without requiring USB media to remain inserted after boot.
+</Note>

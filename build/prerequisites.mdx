@@ -1,0 +1,54 @@
+---
+title: "Build Prerequisites for AmnesiaOS from Source"
+sidebarTitle: "Prerequisites"
+description: "Set up a Linux build host with the required tools and disk space to compile AmnesiaOS from scratch using the Linux From Scratch methodology."
+---
+
+Building AmnesiaOS from source uses the **Linux From Scratch (LFS)** methodology — the entire toolchain, C library, compiler, and kernel are compiled from source rather than pulled from a package manager. This gives AmnesiaOS a fully auditable, minimal software stack with no distribution cruft. It is a significant undertaking, so before you begin make sure your build host meets the requirements below.
+
+## Host requirements
+
+| Component | Requirement |
+|-----------|-------------|
+| OS | Linux — Debian/Ubuntu recommended |
+| Disk space | 30 GB free minimum |
+| RAM | 4 GB+ |
+| Network | Internet connection required for source downloads |
+
+## Install build dependencies
+
+Install all required build tools with a single `apt` command:
+
+```bash
+sudo apt install -y build-essential gcc g++ make bison flex \
+    libncurses-dev libssl-dev libelf-dev bc xorriso grub-pc-bin \
+    grub-efi-amd64-bin mtools wget
+```
+
+## LFS build overview
+
+The AmnesiaOS build proceeds in three sequential phases:
+
+1. **Toolchain (LFS chapters 5–7):** Build a cross-compilation toolchain from scratch targeting `x86_64-pc-linux-gnu`. This temporary toolchain is used exclusively to compile the final system packages and is never shipped in the OS image.
+
+2. **Core packages (LFS chapter 8):** Use the toolchain to compile the core userspace from source. Key packages and their versions are:
+   - **glibc 2.42** — the C library
+   - **GCC 15.2.0** — the compiler collection
+   - **binutils 2.45** — assembler, linker, and binary utilities
+   - **Linux kernel 6.16.1** — the OS kernel
+
+3. **AmnesiaOS components:** Assemble the initramfs and create the bootable ISO image. These steps are fully automated by the build scripts and are covered in detail on the following pages.
+
+<Info>
+  The official Linux From Scratch book at [https://www.linuxfromscratch.org](https://www.linuxfromscratch.org) provides comprehensive step-by-step instructions for the toolchain and core package phases. Follow chapters 5 through 8 before proceeding to the AmnesiaOS-specific build steps.
+</Info>
+
+## Build scripts
+
+Once the LFS toolchain and core packages are in place, two scripts automate the remaining AmnesiaOS-specific build steps:
+
+- **`scripts/build-initramfs.sh`** — downloads BusyBox, assembles the initramfs directory tree, writes the `/init` script, creates device nodes, and packs everything into a gzip-compressed CPIO archive at `/boot/initramfs-6.16.1.img`.
+
+- **`scripts/build-iso.sh`** — takes the compiled kernel and initramfs, writes the GRUB configuration, and produces a bootable hybrid ISO at `~/amnesia-os.iso` using `grub-mkrescue`.
+
+Both scripts are covered in full on the [Initramfs](/build/initramfs) and [ISO Creation](/build/iso) pages.

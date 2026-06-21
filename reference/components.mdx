@@ -1,0 +1,140 @@
+---
+title: "AmnesiaOS Component Reference"
+sidebarTitle: "Components"
+description: "Detailed reference for every AmnesiaOS component: Linux kernel 6.16.1, BusyBox 1.35.0, GRUB 2.12, the /init script, and the tmpfs root filesystem."
+---
+
+AmnesiaOS is composed of a small number of tightly integrated components. This page documents each component's role, version, and configuration within the system.
+
+## Linux Kernel 6.16.1
+
+The Linux kernel is the core of AmnesiaOS. It initialises hardware, decompresses the initramfs archive into a tmpfs filesystem entirely in RAM, and then executes `/init` as PID 1 — the first userspace process.
+
+The kernel is compiled from source using `x86_64_defconfig` as a baseline with custom options layered on top to support the initramfs-based boot flow and keep the binary as small as possible.
+
+**Key enabled kernel features**
+
+| Feature | Kconfig Symbol |
+|---|---|
+| Initramfs / initrd support | `CONFIG_BLK_DEV_INITRD` |
+| tmpfs RAM filesystem | `CONFIG_TMPFS` |
+| SquashFS (future compressed image) | `CONFIG_SQUASHFS` |
+| USB mass storage | `CONFIG_USB_STORAGE` |
+| ext4 filesystem | `CONFIG_EXT4_FS` |
+
+**Kernel command line**
+
+```text
+init=/init rw console=tty1 [debug]
+```
+
+The `init=/init` argument tells the kernel to execute the custom `/init` shell script as PID 1 rather than a conventional init system. `console=tty1` binds all kernel console output to the first virtual terminal. The optional `debug` parameter enables verbose kernel logging and is available via the second GRUB boot entry.
+
+**Memory footprint:** ~15 MB at runtime.
+
+---
+
+## BusyBox 1.35.0
+
+BusyBox is a single statically-linked binary that provides the entire AmnesiaOS userland. It bundles over 300 standard Unix utilities into one compact executable, making it ideal for an initramfs environment where every byte of RAM matters.
+
+- **Installed at:** `/bin/busybox`
+- **Linking:** statically linked against musl libc — no external shared library dependencies
+- **Download source:** `https://busybox.net/downloads/binaries/1.35.0-x86_64-linux-musl/busybox`
+
+Each utility is exposed as a symlink in `/bin/` pointing back to `/bin/busybox`. When invoked via a symlink, BusyBox reads `argv[0]` to determine which applet to run. See the [BusyBox Utilities](/reference/busybox-utilities) page for the full list of symlinked commands.
+
+**Memory footprint:** ~1 MB (static binary).
+
+---
+
+## GRUB 2.12
+
+GRUB is the bootloader responsible for loading the Linux kernel and the initramfs image into RAM before handing control to the kernel. It is embedded directly into the bootable ISO during the build process using `grub-mkrescue`.
+
+**Platform support**
+
+| Platform | Module set |
+|---|---|
+| BIOS | `i386-pc` |
+| UEFI | `x86_64-efi` |
+
+**Boot entries**
+
+The GRUB configuration at `/boot/grub/grub.cfg` (embedded in the ISO) exposes two menu entries:
+
+1. **AmnesiaOS** — standard boot with `console=tty1`
+2. **AmnesiaOS (verbose)** — same kernel + initramfs with the additional `debug` parameter for detailed boot logging
+
+Because the entire system lives in RAM after boot, the GRUB configuration file and the ISO image itself are not accessed again once the kernel has been loaded.
+
+---
+
+## /init Script
+
+`/init` is the first userspace process executed by the kernel (PID 1). It is a POSIX shell script that runs under BusyBox `sh` and is responsible for bootstrapping the runtime environment before handing off to an interactive shell.
+
+**Location in initramfs:** `/init`
+
+**Responsibilities, in order:**
+
+1. Mount virtual filesystems:
+   - `proc` → `/proc`
+   - `sysfs` → `/sys`
+   - `devtmpfs` → `/dev`
+2. Bring up the loopback interface (`lo`)
+3. Enumerate non-loopback network interfaces and run `udhcpc` on each to obtain an IP address, default gateway, and DNS configuration
+4. Write DNS nameservers to `/etc/resolv.conf` via the udhcpc hook script at `/usr/share/udhcpc/default.script`
+5. Execute `/bin/sh` — transferring control to an interactive BusyBox shell
+
+<Note>
+  `/init` uses `exec /bin/sh` as its final instruction. This replaces the `/init` process in-place, so `/bin/sh` inherits PID 1. If the shell is exited, the kernel receives a PID 1 exit and triggers a kernel panic. AmnesiaOS v0.2.0 resolved an earlier bug where the shell could exit unexpectedly.
+</Note>
+
+---
+
+## tmpfs Root Filesystem
+
+The tmpfs root filesystem is the "disk" of AmnesiaOS — a RAM-backed virtual filesystem created by the Linux kernel during initramfs decompression. Every file, directory, and device node that makes up the running system lives entirely in RAM.
+
+**How it is created:**
+
+The kernel extracts the CPIO archive (the initramfs) into a tmpfs mount at boot time. No real block device is involved. The archive contains:
+
+- `/bin/busybox` and all utility symlinks
+- `/init` — the PID 1 bootstrap script
+- `/usr/share/udhcpc/default.script` — the DHCP hook script
+- `/etc/resolv.conf` — an empty placeholder populated at runtime by udhcpc
+- Device nodes: `/dev/console`, `/dev/null`, `/dev/tty`
+- Directory skeleton: `bin`, `dev`, `etc`, `lib`, `lib64`, `proc`, `sys`, `tmp`, `mnt/root`, `root`, `run`, `sbin`, `usr/bin`, `usr/sbin`, `usr/lib`
+
+**Implications:**
+
+- All writes are volatile — they exist only for the current session
+- No swap is configured; all memory pressure is handled by physical RAM
+- On power-off, the hardware clears RAM and nothing persists to any storage device
+
+**Memory footprint:** ~10 MB.
+
+---
+
+## Component Interaction Diagram
+
+The diagram below shows how each component hands control to the next during an AmnesiaOS boot sequence.
+
+```text
+GRUB 2.12
+    │ loads into RAM
+    ▼
+Linux Kernel 6.16.1
+    │ decompresses initramfs → tmpfs
+    ▼
+/init (PID 1)
+    │ mounts proc/sysfs/devtmpfs
+    │ runs udhcpc (DHCP)
+    ▼
+BusyBox /bin/sh
+    │ interactive shell
+    ▼
+[ poweroff ] → RAM cleared
+```

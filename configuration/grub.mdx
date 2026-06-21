@@ -1,0 +1,78 @@
+---
+title: "GRUB Bootloader Configuration for AmnesiaOS"
+sidebarTitle: "GRUB"
+description: "AmnesiaOS uses GRUB 2.12 with two boot entries: a standard RAM boot and a verbose debug mode. Learn how to customize the timeout, default entry, and kernel parameters."
+---
+
+AmnesiaOS ships with a GRUB 2.12 configuration embedded in the ISO. The config presents a 5-second menu allowing selection between a standard boot and a verbose debug boot. If no selection is made within the timeout window, GRUB automatically boots the first entry — the normal RAM boot.
+
+## Boot menu entries
+
+The complete `config/grub.cfg` used in the ISO is shown below:
+
+```
+set default=0
+set timeout=5
+
+menuentry "AmnesiaOS - RAM Boot" {
+    linux /boot/vmlinuz init=/init rw console=tty1
+    initrd /boot/initramfs.img
+}
+
+menuentry "AmnesiaOS - RAM Boot (verbose)" {
+    linux /boot/vmlinuz init=/init rw console=tty1 debug
+    initrd /boot/initramfs.img
+}
+```
+
+Both entries load the same kernel (`/boot/vmlinuz`) and the same initramfs image (`/boot/initramfs.img`). The only difference between them is the `debug` kernel parameter appended to the verbose entry.
+
+## Kernel parameters
+
+| Parameter | Description |
+|---|---|
+| `init=/init` | Tells the kernel to run `/init` as PID 1 instead of the default `/sbin/init` |
+| `rw` | Mounts the initramfs read-write — required for `/init` to create files in tmpfs |
+| `console=tty1` | Directs kernel console output to the first virtual terminal |
+| `debug` | Verbose mode only — enables detailed kernel debug messages during boot |
+
+## Customizing the config
+
+`config/grub.cfg` in the repository is the template consumed by `build-iso.sh` when assembling the ISO image. Edit this file before running the build script to apply your changes.
+
+**Change the timeout**
+
+```
+set timeout=10
+```
+
+The value is in seconds. Use `0` for an immediate boot with no menu, or `-1` to display the menu indefinitely until a manual selection is made.
+
+**Change the default entry**
+
+```
+set default=1
+```
+
+Entries are zero-indexed, so `set default=1` makes the verbose boot the automatic selection.
+
+**Add a custom entry**
+
+Append a new `menuentry` block to the file:
+
+```
+menuentry "AmnesiaOS - Custom" {
+    linux /boot/vmlinuz init=/init rw console=tty1 loglevel=7
+    initrd /boot/initramfs.img
+}
+```
+
+Any valid kernel parameter can be appended to the `linux` line. Refer to the kernel documentation for the full list of available parameters.
+
+## BIOS vs UEFI
+
+The ISO is built with `grub-mkrescue`, which embeds both the BIOS GRUB core image and an EFI application in the same ISO 9660 image. This means the same `.iso` file boots correctly on legacy BIOS systems as well as modern UEFI systems — no separate images or firmware configuration is required.
+
+<Tip>
+  Use **AmnesiaOS - RAM Boot (verbose)** when troubleshooting boot failures. The `debug` parameter produces detailed kernel messages that help identify driver or hardware issues, including missing firmware blobs, failing device probes, and early initramfs errors.
+</Tip>

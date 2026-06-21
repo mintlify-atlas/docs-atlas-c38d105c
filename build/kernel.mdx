@@ -1,0 +1,67 @@
+---
+title: "Compile the Linux 6.16.1 Kernel for AmnesiaOS"
+sidebarTitle: "Kernel"
+description: "Configure and compile Linux kernel 6.16.1 from source with initramfs, tmpfs, and SquashFS support for AmnesiaOS. Covers the key kernel config options required for RAM boot."
+---
+
+AmnesiaOS uses **Linux 6.16.1** compiled from source with a lean, targeted configuration. The two non-negotiable requirements are initramfs/initrd support — so the kernel can unpack the CPIO archive into memory at boot — and tmpfs, so the entire root filesystem lives in RAM without any persistent storage device. The steps below walk through applying the base config, enabling the required options, building, and installing the kernel image.
+
+<Steps>
+  <Step title="Apply the base config">
+    Start from the standard x86_64 defaults to get a sensible baseline before making AmnesiaOS-specific adjustments:
+
+    ```bash
+    cd linux-6.16.1
+    make x86_64_defconfig
+    ```
+  </Step>
+
+  <Step title="Enable required options">
+    Use the `scripts/config` helper to flip the three required options on and one off, then let `make olddefconfig` automatically resolve any dependent symbols:
+
+    ```bash
+    scripts/config --enable  CONFIG_BLK_DEV_INITRD
+    scripts/config --enable  CONFIG_TMPFS
+    scripts/config --enable  CONFIG_SQUASHFS
+    scripts/config --disable CONFIG_MODULE_SIG
+    make olddefconfig
+    ```
+
+    `make olddefconfig` ensures that any Kconfig symbols that depend on the options you just changed are set to their correct defaults — run it every time you modify the config outside of `menuconfig`.
+  </Step>
+
+  <Step title="Build the kernel">
+    Compile the kernel. The build output you need is the compressed kernel image at `arch/x86/boot/bzImage`:
+
+    ```bash
+    make -j$(nproc)
+    ```
+
+    Build time varies from a few minutes on a fast workstation to 30+ minutes on slower hardware. Watch for any errors in the final link stage — warnings earlier in the build are usually harmless.
+
+    <Tip>
+      Always pass `-j$(nproc)` to `make` to parallelize the build across every available CPU core. On a 4-core machine this typically cuts build time by 3–4×.
+    </Tip>
+  </Step>
+
+  <Step title="Install the kernel">
+    Copy the finished kernel image to `/boot` with the versioned name expected by the initramfs and ISO build scripts:
+
+    ```bash
+    cp arch/x86/boot/bzImage /boot/vmlinuz-6.16.1-lfs
+    ```
+  </Step>
+</Steps>
+
+## Key config options
+
+| Config Option | Purpose |
+|---------------|---------|
+| `CONFIG_BLK_DEV_INITRD` | Enables loading an initramfs/initrd archive at boot — required for RAM-only operation |
+| `CONFIG_TMPFS` | Provides the RAM-backed tmpfs filesystem used as the root mount |
+| `CONFIG_SQUASHFS` | Compressed read-only filesystem support; required for a future SquashFS `pivot_root` workflow |
+| `CONFIG_MODULE_SIG` (disabled) | Disables kernel module signing, simplifying the build by removing the need for signing keys |
+
+<Note>
+  The final `.config` produced by this build is exported and stored in `config/kernel.config` in the AmnesiaOS repository for reference. If you need to reproduce the exact configuration used for a tagged release, copy that file over the kernel source's `.config` and run `make olddefconfig` before building.
+</Note>

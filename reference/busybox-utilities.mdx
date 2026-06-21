@@ -1,0 +1,143 @@
+---
+title: "BusyBox Utilities Available in AmnesiaOS"
+sidebarTitle: "BusyBox Utilities"
+description: "Complete list of BusyBox 1.35.0 utilities symlinked in AmnesiaOS. All commands run from the single static BusyBox binary at /bin/busybox."
+---
+
+AmnesiaOS includes BusyBox 1.35.0 — a single statically-linked binary that provides over 300 Unix utilities. The following utilities are symlinked in `/bin/` and available from the shell immediately after boot.
+
+<Note>
+  All commands listed below are symlinks pointing to `/bin/busybox`. BusyBox reads `argv[0]` to determine which applet to run. Running `/bin/busybox --list` in a live AmnesiaOS session shows the full list of applets compiled into the binary — many more than the symlinked subset documented here.
+</Note>
+
+## Available Utilities
+
+<AccordionGroup>
+
+<Accordion title="Shell & Text Processing">
+
+| Command | Description |
+|---|---|
+| `sh` | POSIX-compatible shell — the interactive environment you land in after boot. |
+| `echo` | Print a line of text to standard output. |
+| `cat` | Concatenate and print files to standard output. |
+| `grep` | Search for lines matching a regular expression pattern. |
+| `sed` | Stream editor for filtering and transforming text. |
+| `awk` | Pattern-scanning and text-processing language for column-oriented data. |
+| `head` | Print the first N lines of a file (default: 10). |
+| `tail` | Print the last N lines of a file, with optional follow mode (`-f`). |
+| `more` | Page through text output one screen at a time (forward-only). |
+| `less` | Scroll through text output forward and backward. |
+| `vi` | Minimal vi-compatible text editor for in-session file editing. |
+
+</Accordion>
+
+<Accordion title="File System">
+
+| Command | Description |
+|---|---|
+| `ls` | List directory contents with optional formatting and sorting flags. |
+| `cp` | Copy files and directories. |
+| `mv` | Move or rename files and directories. |
+| `rm` | Remove files or directories. |
+| `mkdir` | Create one or more directories, optionally with parent paths (`-p`). |
+| `find` | Search the filesystem tree for files matching name, type, or attribute criteria. |
+| `chmod` | Change file or directory permission bits. |
+| `chown` | Change the owner and group of a file or directory. |
+| `ln` | Create hard or symbolic links between files. |
+| `pwd` | Print the absolute path of the current working directory. |
+| `tar` | Create, list, or extract tar archive files. |
+| `gzip` | Compress files using the gzip (DEFLATE) algorithm. |
+| `gunzip` | Decompress gzip-compressed files. |
+
+</Accordion>
+
+<Accordion title="System & Process">
+
+| Command | Description |
+|---|---|
+| `ps` | Report a snapshot of currently running processes. |
+| `kill` | Send a signal to a process by PID (default: SIGTERM). |
+| `top` | Display a live, auto-refreshing table of running processes and resource usage. |
+| `df` | Report available and used disk (filesystem) space. |
+| `free` | Display total, used, and available physical memory and swap. |
+| `uname` | Print system information such as kernel version and architecture. |
+| `date` | Display or set the system date and time. |
+| `sleep` | Pause execution for a specified number of seconds. |
+| `dmesg` | Print or control the kernel ring buffer (boot and driver messages). |
+| `hostname` | Display or set the system hostname. |
+
+</Accordion>
+
+<Accordion title="Disk & Mount">
+
+| Command | Description |
+|---|---|
+| `mount` | Mount a filesystem, attaching it to the directory tree at a specified mount point. |
+| `umount` | Unmount a previously mounted filesystem, detaching it from the directory tree. |
+
+</Accordion>
+
+<Accordion title="Network">
+
+| Command | Description |
+|---|---|
+| `ip` | Configure and display network interfaces, routing tables, and tunnels (iproute2-compatible). |
+| `ifconfig` | Display or configure network interface parameters (legacy net-tools style). |
+| `ping` | Send ICMP ECHO_REQUEST packets to a host to test network reachability. |
+| `wget` | Non-interactive network downloader supporting HTTP and FTP. |
+| `udhcpc` | BusyBox DHCP client — used by the init script to obtain an IP address, gateway, and DNS configuration via DHCP. |
+
+</Accordion>
+
+<Accordion title="User Management">
+
+| Command | Description |
+|---|---|
+| `su` | Switch to another user account (or root) within the current shell session. |
+| `login` | Begin a new login session, prompting for username and password. |
+
+</Accordion>
+
+<Accordion title="Utilities">
+
+| Command | Description |
+|---|---|
+| `basename` | Strip directory path and an optional suffix from a filename, returning only the final component. |
+
+</Accordion>
+
+</AccordionGroup>
+
+## Using BusyBox Applets
+
+Every utility can be invoked either via its `/bin/` symlink or directly through the `busybox <applet>` syntax. Both forms are equivalent.
+
+```sh
+busybox ls -la /
+busybox ip addr show
+```
+
+This is particularly useful when a symlink does not exist for an applet that is compiled into the binary, or when you want to be explicit about which binary is running the command.
+
+## Applet Help
+
+Every BusyBox applet supports a `--help` flag that prints a concise usage summary.
+
+```sh
+busybox applet --help
+# or, using the symlink directly:
+applet --help
+```
+
+For example:
+
+```sh
+busybox udhcpc --help
+ip --help
+tar --help
+```
+
+<Tip>
+  Run `busybox --list` to see every applet compiled into the AmnesiaOS BusyBox binary. The symlinked subset documented above covers the most commonly used commands, but the full binary includes many additional applets such as `httpd`, `ftpget`, `nc`, `xxd`, `hexdump`, and more.
+</Tip>

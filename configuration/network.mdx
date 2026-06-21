@@ -1,0 +1,96 @@
+---
+title: "Network Configuration in AmnesiaOS via DHCP"
+sidebarTitle: "Network"
+description: "AmnesiaOS automatically configures network interfaces at boot using udhcpc, BusyBox's DHCP client. Learn how DHCP, DNS, and the udhcpc hook script work."
+---
+
+Since v0.2.0, AmnesiaOS automatically configures network interfaces at boot using `udhcpc` — BusyBox's built-in DHCP client. No manual configuration is needed on networks with a DHCP server. The entire process runs inside `/init` before the interactive shell is launched, so the network is ready the moment you reach a prompt.
+
+## How network boot works
+
+<Steps>
+  <Step title="/init brings up loopback">
+    The init script runs `ip link set lo up` to enable the loopback interface. This must happen first so that local inter-process communication works correctly before any external interfaces are brought up.
+  </Step>
+  <Step title="Interface discovery">
+    The init script iterates `/sys/class/net/*` to enumerate all network interfaces present on the system. The loopback interface (`lo`) is filtered out — only physical and virtual non-loopback interfaces are processed.
+  </Step>
+  <Step title="Interface up">
+    For each discovered interface, the init script runs `ip link set <iface> up` to bring the link layer up and make it ready to send and receive frames.
+  </Step>
+  <Step title="DHCP request">
+    The init script runs `udhcpc` for each interface:
+
+    ```sh
+    udhcpc -i <iface> -n -q -s /usr/share/udhcpc/default.script
+    ```
+
+    | Flag | Meaning |
+    |---|---|
+    | `-i <iface>` | Bind the DHCP client to this specific interface |
+    | `-n` | Exit with a non-zero code if no lease is obtained |
+    | `-q` | Quit after obtaining the first lease |
+    | `-s` | Specify the hook script to call on lease events |
+  </Step>
+  <Step title="Hook script applies config">
+    On a successful lease `udhcpc` calls `default.script` with `$1` set to `bound`. The script then applies the IP address, adds the default gateway route, and writes the DNS server list to `/etc/resolv.conf`.
+  </Step>
+</Steps>
+
+## The udhcpc hook script
+
+The file `/usr/share/udhcpc/default.script` is created during initramfs build time by `build-initramfs.sh` and is packed into the CPIO archive:
+
+```sh
+#!/bin/sh
+case "$1" in
+    deconfig)
+        ip addr flush dev "$interface"
+        ;;
+    bound|renew)
+        ip addr add "$ip"/"${mask:-${subnet:-24}}" dev "$interface"
+        if [ -n "$router" ]; then
+            ip route add default via "$router" dev "$interface"
+        fi
+        if [ -n "$dns" ]; then
+            > /etc/resolv.conf
+            for d in $dns; do
+                echo "nameserver $d" >> /etc/resolv.conf
+            done
+        fi
+        ;;
+esac
+exit 0
+```
+
+`udhcpc` exports DHCP lease information as shell environment variables (`$interface`, `$ip`, `$mask`, `$subnet`, `$router`, `$dns`) before invoking the script, so the script can apply them directly with standard `ip` commands.
+
+<Info>
+  `/etc/resolv.conf` is created as an empty file at initramfs build time (`touch /etc/resolv.conf`) and populated at boot by the DHCP hook script. This ensures the file always exists, even before a lease is obtained.
+</Info>
+
+## Hook script actions
+
+| Event | Action |
+|---|---|
+| `deconfig` | Flush all addresses from the interface — called before a new DHCP exchange begins |
+| `bound` | Set IP address and prefix length, add the default gateway route, write DNS servers to `/etc/resolv.conf` |
+| `renew` | Same as `bound` — refreshes the lease with updated IP, gateway, and DNS values |
+
+## Manual network configuration
+
+For environments without a DHCP server, configure the network manually after reaching the BusyBox shell:
+
+```sh
+# Set a static IP
+ip addr add 192.168.1.100/24 dev eth0
+ip link set eth0 up
+ip route add default via 192.168.1.1
+echo "nameserver 1.1.1.1" > /etc/resolv.conf
+```
+
+Replace `192.168.1.100`, `192.168.1.1`, and `eth0` with values appropriate for your network. Multiple nameservers can be added by appending additional `nameserver` lines to `/etc/resolv.conf`.
+
+<Note>
+  Network configuration is stored in RAM (tmpfs). If you reboot, all network config — including any manual static configuration — is lost and re-applied automatically via DHCP on the next boot.
+</Note>

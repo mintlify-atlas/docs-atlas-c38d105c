@@ -1,0 +1,99 @@
+---
+title: "AmnesiaOS Boot Sequence: From BIOS to BusyBox Shell"
+sidebarTitle: "Boot Sequence"
+description: "Step-by-step walkthrough of how AmnesiaOS boots: GRUB loads the kernel and initramfs into RAM, the init script mounts virtual filesystems and configures the network, then drops to a BusyBox shell."
+---
+
+The AmnesiaOS boot process is designed so that **all execution happens in RAM from the moment GRUB hands off to the kernel**. GRUB reads the bootloader configuration and copies both `vmlinuz` and `initramfs.img` into physical memory. After that handoff, the boot medium (USB drive or other device) is never touched again — no reads, no writes, no mounts. Every subsequent step — kernel decompression, virtual filesystem setup, network configuration, and the interactive shell — runs entirely in RAM.
+
+## Boot sequence
+
+<Steps>
+  <Step title="Firmware (BIOS/UEFI)">
+    The system firmware performs its Power-On Self-Test (POST) and scans for bootable devices. When a USB drive containing AmnesiaOS is detected, the firmware reads the boot sector and transfers control to the GRUB 2.12 bootloader stored on the medium.
+  </Step>
+
+  <Step title="GRUB 2.12">
+    GRUB reads `grub.cfg` from the boot partition and presents a five-second countdown menu with two entries (see [GRUB menu entries](#grub-menu-entries) below). Once an entry is selected — or the default fires after the timeout — GRUB executes two commands:
+
+    1. Loads `vmlinuz` (the compressed Linux kernel) into RAM and passes the kernel command line:
+       ```
+       linux /boot/vmlinuz init=/init rw console=tty1
+       ```
+    2. Loads `initramfs.img` (the gzip'd CPIO archive) into RAM:
+       ```
+       initrd /boot/initramfs.img
+       ```
+
+    After both images are in RAM, GRUB transfers control to the kernel entry point. The boot medium is no longer accessed.
+  </Step>
+
+  <Step title="Linux Kernel 6.16.1">
+    The kernel decompresses itself in place, then decompresses the gzip'd CPIO initramfs archive into a fresh `tmpfs` mounted at `/`. This tmpfs exists entirely in RAM — there is no block device backing it. With the root filesystem populated, the kernel looks up the path specified by `init=/init` on the kernel command line and executes it as PID 1.
+  </Step>
+
+  <Step title="/init script">
+    The `/init` shell script is the first userspace process. It performs the minimum setup required for a usable environment:
+
+    - Mounts the virtual filesystems: `proc` at `/proc`, `sysfs` at `/sys`, and `devtmpfs` at `/dev`.
+    - Brings up the loopback interface (`lo`).
+    - Iterates over every network interface found in `/sys/class/net/`, brings each one up, and runs `udhcpc` to request a DHCP lease.
+    - Prints status messages to the console as it works:
+      ```
+      AmnesiaOS - RAM boot OK
+      Configuring network...
+      Network configured on <iface>
+      ```
+
+    The complete `/init` script, embedded in the initramfs at build time by `build-initramfs.sh`, is:
+
+    ```sh
+    #!/bin/sh
+    mount -t proc proc /proc
+    mount -t sysfs sysfs /sys
+    mount -t devtmpfs devtmpfs /dev 2>/dev/null
+
+    echo "AmnesiaOS - RAM boot OK"
+    echo "Configuring network..."
+
+    ip link set lo up 2>/dev/null
+
+    for iface in /sys/class/net/*; do
+        name=${iface##*/}
+        if [ "$name" != "lo" ]; then
+            ip link set "$name" up 2>/dev/null
+            udhcpc -i "$name" -n -q -s /usr/share/udhcpc/default.script 2>/dev/null && echo "Network configured on $name"
+        fi
+    done
+
+    exec /bin/sh
+    ```
+  </Step>
+
+  <Step title="BusyBox shell">
+    The final line of `/init` — `exec /bin/sh` — replaces the init process with an interactive BusyBox shell. The shell inherits PID 1. The user now has access to a full interactive environment backed by BusyBox 1.35.0's 300+ utilities: `ls`, `cat`, `vi`, `ip`, `ping`, `tar`, `grep`, `awk`, and more — all from the single statically-linked `/bin/busybox` binary.
+  </Step>
+</Steps>
+
+## GRUB menu entries
+
+The two menu entries defined in `grub.cfg` correspond to a normal boot and a verbose debug boot. The only difference is the addition of the `debug` kernel parameter in the second entry, which enables verbose kernel logging to the console.
+
+```sh
+set default=0
+set timeout=5
+
+menuentry "AmnesiaOS - RAM Boot" {
+    linux /boot/vmlinuz init=/init rw console=tty1
+    initrd /boot/initramfs.img
+}
+
+menuentry "AmnesiaOS - RAM Boot (verbose)" {
+    linux /boot/vmlinuz init=/init rw console=tty1 debug
+    initrd /boot/initramfs.img
+}
+```
+
+<Note>
+  The last instruction in `/init` is `exec /bin/sh`, which **replaces** the init process (PID 1) with the BusyBox shell rather than spawning a child. This means the shell *is* PID 1 — if the user types `exit` or presses `Ctrl-D`, the shell process terminates and the kernel has no init to fall back on, resulting in a kernel panic. This behaviour is intentional: there is no background daemon to return to. In v0.1.0 a bug caused the shell to exit unexpectedly under certain terminal conditions, triggering spurious kernel panics; this was fixed in v0.2.0 by ensuring the `exec` is always reached.
+</Note>

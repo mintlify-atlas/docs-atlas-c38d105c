@@ -1,0 +1,57 @@
+---
+title: "AmnesiaOS System Requirements and Hardware Support"
+sidebarTitle: "Requirements"
+description: "Hardware requirements to run AmnesiaOS: x86_64 CPU, 512 MB RAM minimum, and a USB drive or other bootable media for the ISO image."
+---
+
+Because AmnesiaOS runs entirely in RAM, your machine's physical memory is both the operating environment and the working filesystem. Unlike a traditional OS that uses disk storage to extend its effective memory through swap, AmnesiaOS has no swap — every byte of working space comes from installed RAM. This makes RAM capacity the most directly relevant hardware factor: more RAM means more room for the OS and any work you do in the session.
+
+<Info>
+  x86_64 is the only supported CPU architecture in the current release. 32-bit x86, ARM, RISC-V, and other architectures are not supported at this time.
+</Info>
+
+## Minimum Requirements
+
+| Component | Minimum                      | Recommended              |
+|-----------|------------------------------|--------------------------|
+| CPU       | x86_64                       | x86_64                   |
+| RAM       | 512 MB                       | 1 GB+                    |
+| Storage   | USB drive or bootable media  | USB 3.0 drive            |
+| Firmware  | BIOS or UEFI                 | UEFI preferred           |
+
+## RAM Considerations
+
+AmnesiaOS has a very small in-memory footprint. Once the system is running, RAM is consumed roughly as follows:
+
+| Component             | Approximate Size |
+|-----------------------|------------------|
+| Linux kernel (6.16.1) | ~15 MB           |
+| initramfs image       | ~10 MB           |
+| **Total OS overhead** | **~25 MB**       |
+
+On a machine with 512 MB of physical RAM, approximately **470 MB** remains free for use after the OS loads. That is enough for lightweight scripting, network tasks, and command-line work.
+
+For comfortable general use — running multiple processes, working with larger files in the `tmpfs` root, or any memory-intensive tooling — **1 GB or more** of RAM is recommended. Because there is no swap, any attempt to exceed available physical memory will cause the kernel's OOM killer to terminate processes rather than page to disk.
+
+## Supported Firmware
+
+AmnesiaOS ships with **GRUB 2.12** as its bootloader. The ISO is built using `grub-mkrescue`, which embeds both a **BIOS (PC-BIOS / CSM)** bootloader and an **EFI** bootloader in a single hybrid image. This means:
+
+- **Legacy BIOS systems** can boot the ISO without any firmware configuration changes beyond setting boot order.
+- **UEFI systems** (with or without Secure Boot disabled) can boot from the EFI partition embedded in the ISO.
+
+UEFI is preferred because it provides faster firmware initialisation and more reliable USB boot enumeration on modern hardware. If your system supports UEFI, boot in UEFI mode rather than CSM/Legacy mode for best results.
+
+Secure Boot is not currently supported. You will need to disable Secure Boot in your UEFI firmware settings before booting AmnesiaOS.
+
+## Storage Media
+
+The AmnesiaOS ISO must be written to a USB drive (or other bootable block device) using a raw image writer such as `dd`:
+
+```bash
+dd if=amnesia-os.iso of=/dev/sdX bs=4M status=progress
+```
+
+Once the OS has finished booting, the USB drive is **no longer accessed** — the kernel and initramfs have already been copied into RAM in their entirety by the bootloader. The USB drive must, however, remain physically inserted until the machine is powered off. This is a current limitation of the initramfs-only boot approach: the kernel holds a reference to the boot device until the init process completes.
+
+This restriction will be lifted in **v1.0.0**, which will introduce a SquashFS root image and a `pivot_root` transition. After `pivot_root`, the OS will be fully self-contained in RAM and the USB drive can be safely removed while the system is running.

@@ -1,0 +1,64 @@
+---
+title: "Linux Kernel Configuration for AmnesiaOS RAM Boot"
+sidebarTitle: "Kernel Config"
+description: "The AmnesiaOS kernel requires initramfs support, tmpfs, and SquashFS enabled. Review the key Kconfig options and how they relate to the RAM-boot architecture."
+---
+
+AmnesiaOS uses a minimal Linux 6.16.1 kernel configuration derived from `x86_64_defconfig`. Only the options necessary for RAM boot, USB storage, and the planned SquashFS upgrade are enabled on top of the defaults. The final `.config` is exported to `config/kernel.config` in the repository so every build is fully reproducible.
+
+## Required kernel options
+
+The table below lists the Kconfig symbols that differ from `x86_64_defconfig` defaults and explains why each one is essential to the RAM-boot model.
+
+| Kconfig Symbol | Value | Purpose |
+|---|---|---|
+| `CONFIG_BLK_DEV_INITRD` | `y` | Enables loading initramfs/initrd at boot — essential for the RAM boot model |
+| `CONFIG_TMPFS` | `y` | RAM-backed virtual filesystem used as root |
+| `CONFIG_SQUASHFS` | `y` | Compressed read-only filesystem — required for planned v1.0.0 SquashFS `pivot_root` |
+| `CONFIG_MODULE_SIG` | disabled | Module signing removed to simplify the build — no signed module verification |
+
+<Note>
+  `CONFIG_SQUASHFS` is enabled now to future-proof the kernel for the planned v1.0.0 full userland release, even though it is not used in the current initramfs-only boot.
+</Note>
+
+## Applying the configuration
+
+During the AmnesiaOS build process the kernel config is assembled by starting from the upstream `x86_64_defconfig` and then toggling individual symbols with the `scripts/config` helper. Run the following commands from the kernel source tree:
+
+```bash
+cd linux-6.16.1
+make x86_64_defconfig
+scripts/config --enable CONFIG_BLK_DEV_INITRD
+scripts/config --enable CONFIG_TMPFS
+scripts/config --enable CONFIG_SQUASHFS
+scripts/config --disable CONFIG_MODULE_SIG
+make olddefconfig
+```
+
+`make olddefconfig` resolves any dependency changes introduced by the manual symbol edits and fills in new options with their default values, keeping the configuration consistent.
+
+## Saved configuration
+
+The final `.config` produced by the build is exported to `config/kernel.config` in the repository for reproducibility. To use it directly instead of running the steps above:
+
+```bash
+cp config/kernel.config linux-6.16.1/.config
+cd linux-6.16.1
+make olddefconfig
+make
+```
+
+This guarantees you compile the exact same kernel that shipped with the release, without having to replay every `scripts/config` invocation.
+
+## Modifying the config
+
+To browse and change kernel options interactively, use the `menuconfig` target from inside the kernel source tree:
+
+```bash
+cd linux-6.16.1
+make menuconfig
+```
+
+The ncurses-based interface lets you search for symbols (`/`), navigate subsystem menus, and toggle options with the spacebar. When you are done, save and exit — then run `make olddefconfig` before building to resolve any newly introduced dependencies.
+
+Keep in mind that adding support for hardware (such as Wi-Fi adapters or additional storage controllers) requires enabling the corresponding Kconfig symbols. For example, enabling an Intel wireless driver also requires `CONFIG_CFG80211` and `CONFIG_MAC80211`. The `scripts/config --enable` approach shown above works for single symbols; `menuconfig` is better when exploring an unfamiliar subsystem.

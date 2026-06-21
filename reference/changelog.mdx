@@ -1,0 +1,81 @@
+---
+title: "AmnesiaOS Release History and Changelog"
+sidebarTitle: "Changelog"
+description: "Release notes for every AmnesiaOS version. Covers v0.2.0 (network boot), v0.1.0 (initial RAM boot release), and the planned versioning roadmap."
+---
+
+AmnesiaOS follows semantic versioning in three stages: `0.x.x` for early development, `1.x.x` for stable with persistent USB support, and `2.x.x` for a full LFS userland running entirely in RAM.
+
+---
+
+## v0.2.0 <span style={{color: '#6366f1', fontWeight: 600}}>2026-06-16</span>
+
+### Added
+
+- **Automatic network configuration at boot** — the `/init` script now enumerates all non-loopback interfaces and runs `udhcpc` on each one, so the system acquires an IP address, default gateway, and DNS server configuration without any manual steps.
+- **DNS resolution via dynamic `/etc/resolv.conf`** — the udhcpc hook script writes `nameserver` entries to `/etc/resolv.conf` on lease acquisition and renewal, enabling hostname resolution immediately after boot.
+- **udhcpc hook script** — a custom POSIX shell script installed at `/usr/share/udhcpc/default.script` handles the `deconfig`, `bound`, and `renew` udhcpc events, applying address, route, and DNS changes via `ip`.
+- **Additional BusyBox utilities:** `basename`, `udhcpc` — both symlinked in `/bin/` and available from the shell.
+
+### Fixed
+
+- **Shell exit causing kernel panic** — the `/init` script previously allowed `/bin/sh` to return, which caused the kernel to receive a PID 1 exit and panic. The script now uses `exec /bin/sh`, replacing the init process in-place so there is no parent to return to.
+- **Console output bound to `tty1`** — the GRUB configuration now correctly passes `console=tty1` on the kernel command line, ensuring all boot messages and the interactive shell appear on the first virtual terminal.
+
+### System Components
+
+| Component | Version |
+|---|---|
+| Kernel | Linux 6.16.1 |
+| Init | Custom shell script with network bootstrap |
+| Userland | BusyBox 1.35.0 |
+| Bootloader | GRUB 2.12 |
+| Filesystem | tmpfs (RAM) |
+| Network | DHCP client (udhcpc) |
+
+---
+
+## v0.1.0 <span style={{color: '#6366f1', fontWeight: 600}}>2026-06-14</span>
+
+Initial release of AmnesiaOS.
+
+### Added
+
+- **Linux kernel 6.16.1 compiled from source** — built from `x86_64_defconfig` with custom options enabling initramfs, tmpfs, SquashFS, USB storage, and ext4 support.
+- **Custom initramfs with BusyBox 1.35.0** — a CPIO archive packed with the static BusyBox binary, utility symlinks, device nodes, and the `/init` bootstrap script.
+- **Full RAM boot** — the entire operating system loads into a tmpfs filesystem in RAM at boot time; no block device is mounted or written to.
+- **Basic shell environment with common utilities** — standard Unix commands (`ls`, `cat`, `grep`, `vi`, `ip`, `ping`, and more) available immediately after boot via BusyBox symlinks.
+- **GRUB bootloader support (BIOS + EFI)** — the ISO supports both legacy BIOS (`i386-pc`) and UEFI (`x86_64-efi`) boot modes, built using `grub-mkrescue`.
+- **Bootable ISO image** — a single `.iso` file that can be flashed to USB with `dd` and booted on any x86_64 machine.
+
+### System Components
+
+| Component | Version |
+|---|---|
+| Kernel | Linux 6.16.1 |
+| Init | Custom shell script |
+| Userland | BusyBox 1.35.0 |
+| Bootloader | GRUB 2.12 |
+| Filesystem | tmpfs (RAM) |
+
+---
+
+## Versioning Roadmap
+
+AmnesiaOS uses a three-stage versioning scheme that reflects the maturity of the system and its capabilities.
+
+### `0.x.x` — Early Development
+
+The current stage. The OS boots via an initramfs CPIO archive into a BusyBox userland running entirely in RAM. Storage devices are not mounted. Focus is on a stable, minimal, forensically clean boot environment.
+
+### `1.x.x` — Stable
+
+Introduces **persistent USB support** and a SquashFS-based root filesystem. At boot, a SquashFS image containing a full LFS userland is copied entirely into RAM. `pivot_root` then switches the root to the in-RAM copy and the USB device is unmounted. The system continues to run with zero storage dependency, but now with a richer userland than BusyBox alone.
+
+### `2.x.x` — Full LFS Userland in RAM
+
+The SquashFS image grows into a complete Linux From Scratch userland — compilers, package managers, networking tools, and a proper init system — all running in RAM with zero USB dependency after the initial boot copy.
+
+<Info>
+  AmnesiaOS will never mount persistent storage by default. Across all version stages, the core guarantee remains: shutdown clears RAM and leaves no trace on any storage device.
+</Info>
